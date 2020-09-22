@@ -9,7 +9,7 @@
 
 const char* ssid = "LeBgEnD";
 const char* password = "ali12345";
-const char* mqtt_server = "192.168.1.12";
+const char* mqtt_server = "192.168.1.10";
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -45,9 +45,11 @@ int base = 0;
 int cap = 700; // max is 819
 
 //Gains
-float kp[] = {0, 0, 0, 0};//gains for roll, pitch, yaw, altitude
-float kd[] = {0.5, 0, 0, 0};
-float prev_ed[4]= {0, 0, 0, 0};
+float kp[] = {1.1, 1.3, 0, 0};//gains for roll, pitch, yaw, altitude
+float kd[] = {0.13, 0.15, 0, 0};
+float ki[] = {0.12, 0.12, 0, 0};
+float prev_ed[]= {0, 0, 0, 0};
+float sum_i[] = {0, 0, 0, 0};
 
 //timers
 unsigned long timer;
@@ -72,6 +74,7 @@ const int PWM_bl = 12;
 //custom function
 
 void get_angles();
+void get_angles_quat();
 void cal_command(float angle, float angle_des, int gain, int dt);
 void motor_command(int base);
 void send_command(int com_fr, int com_fl, int com_br, int com_bl);
@@ -114,11 +117,11 @@ void loop() {
 
   if (timer - prev_timer >=5 && start_condition){
     //Get angle update from IMU
-    get_angles();
+    get_angles_quat();
 
     //Calculate PID correction for each angle
     cal_command(roll, 0, 0, 5);
-    //cal_command(pitch, 0, 1, 5);
+    cal_command(pitch, 0, 1, 5);
 
 /*     Serial.print(roll);
     Serial.print(" ");
@@ -153,25 +156,49 @@ void loop() {
 void get_angles(){
 
   imu.read_sensor();
-  roll = imu.get_roll_eul() + 3;
+  roll = imu.get_roll_eul() ;
   pitch =  imu.get_pitch_eul();
   yaw = imu.get_yaw_eul();
-  roll_speed = imu.get_gyro_roll();
+  roll_speed = imu.get_gyro_roll(70);
+  Serial.print(roll);
+  Serial.print(" ");
+  Serial.print(roll_speed);
+  Serial.println(" ");
+}
+ 
+void get_angles_quat(){
+
+  imu.read_quat();
+  roll = imu.get_roll_quat() ;
+  pitch =  imu.get_pitch_quat();
+  yaw = imu.get_yaw_quat();
+  //roll_speed = imu.get_gyro_roll(70);
+  Serial.print(roll);
+  Serial.print(" ");
+  Serial.print(pitch);
+  Serial.println(" ");
 }
 
 void cal_command(float angle, float angle_des, int gain, int dt){
 
   float e_p = angle - angle_des;
-  //float e_d = (e_p - prev_ed[gain])/(dt ) * 1000;
-  float e_d = roll_speed;
-  Serial.print(e_d);
+  float e_d = (e_p - prev_ed[gain])/(dt ) * 1000;
+  prev_ed[gain] = prev_ed[gain] * 0.6 + e_p * 0.4;
+  float e_i = sum_i[gain] + e_p;
+  e_i = constrain(e_i, -100, 100);
+  sum_i[gain] = e_i;
+
+  //float e_d = roll_speed;
+  //Serial.println(e_d);
+
+  int u_command = kp[gain] * e_p + kd[gain] * e_d + e_i * ki[gain];
+
+/*   Serial.print(kp[gain] * e_p);
   Serial.print(" ");
   Serial.print(kd[gain] * e_d);
   Serial.print(" ");
-  prev_ed[gain] = e_p;
-
-  int u_command = kp[gain] * e_p + kd[gain] * e_d;
-  u[gain] = constrain(u_command, -200, 200);
+  Serial.println(e_i * ki[gain]); */
+  u[gain] = constrain(u_command, -35, 35);
 
 }
 
@@ -181,12 +208,13 @@ void motor_command(int base){
   int motor_fl = base - u[0] - u[1] + u[2] + u[3];
   int motor_br = base + u[0] + u[1] - u[2] + u[3];
   int motor_bl = base - u[0] + u[1] + u[2] + u[3];
-
-  Serial.print(motor_fr);
+/*
+   Serial.print(motor_fr);
   Serial.print(" ");
   Serial.print(motor_fl);
   Serial.println(" ");
-/*   Serial.print(motor_br);
+  
+ Serial.print(motor_br);
   Serial.print(" ");
   Serial.print(motor_bl);
   Serial.println(" "); */

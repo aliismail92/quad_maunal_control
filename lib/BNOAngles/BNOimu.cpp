@@ -5,11 +5,8 @@
 #include "SparkFun_BNO080_Arduino_Library.h"
 
 
-
-
 BNOimu::BNOimu(){
 
-  
 }
 
 
@@ -19,16 +16,16 @@ void BNOimu::setup(boolean vector){
   Wire.begin();
   myIMU.begin();
   myIMU.calibrateAll();
-  Wire.setClock(400000); 
+  Wire.setClock(400000);
   delay(1);
 
-  if (vector){
-    myIMU.enableAccelerometer(5); 
-    myIMU.enableRotationVector(5);
-  }else{
+  if (vector == true){
     myIMU.enableAccelerometer(5); 
     myIMU.enableGyro(5); 
-    myIMU.enableMagnetometer(5);    
+    myIMU.enableMagnetometer(5); 
+
+  }else{
+    myIMU.enableRotationVector(5);  
   }
 
   delay(5);
@@ -55,10 +52,19 @@ void BNOimu::read_sensor(){
 
 }
 
-float BNOimu::get_gyro_roll(){
-  return y_g * rad2deg;
+float BNOimu::get_gyro_roll(int filter){
+  
+  float gyro_roll =  y_g * (1 - filter/100) + gyro_prev * (filter/100);
+  gyro_prev = y_g;
+
+  return gyro_roll*rad2deg;
 }
 
+/* float BNOimu::get_altitude(int dt){
+  float vertical_acc = z_a - 9.81 + (9.81 * sin(thetaRad));
+  float altitude = vertical_acc * dt * dt * 0.5 + prev_pos_z; 
+
+}*/
 float BNOimu::get_roll_eul(){
     
     timer = millis();
@@ -68,7 +74,7 @@ float BNOimu::get_roll_eul(){
     delta_phi = -1 * x_g * dt * rad2deg;
     phi_G = phi_G + delta_phi;
     phi = atan2(z_a, y_a) * rad2deg - 90;
-    phi_f = (phi_f + delta_phi)*0.85 + phi*0.15;
+    phi_f = (phi_f + delta_phi)*0.95 + phi*0.05;
     phiRad = phi_f * deg2rad;
     
     return phi_f;
@@ -83,7 +89,7 @@ float BNOimu::get_pitch_eul(){
     delta_theta = y_g * dt * rad2deg;
     theta_G =theta_G + delta_theta;   
     theta = atan2(z_a, x_a) * rad2deg - 90;
-    theta_f = (theta_f + delta_theta) * 0.85 + theta * 0.15;
+    theta_f = (theta_f + delta_theta) * 0.95 + theta * 0.05;
     thetaRad = theta_f * deg2rad;
 
     return theta_f;
@@ -110,12 +116,12 @@ float BNOimu::get_yaw_eul(){
 
 
 void BNOimu::read_quat(){
-    
-    quatI = myIMU.getQuatI();
-    quatJ = myIMU.getQuatJ();
-    quatK = myIMU.getQuatK();
-    quatReal = myIMU.getQuatReal();
-
+   if (myIMU.dataAvailable() == true){ 
+      quatI = myIMU.getQuatI();
+      quatJ = myIMU.getQuatJ();
+      quatK = myIMU.getQuatK();
+      quatReal = myIMU.getQuatReal();
+   }
 }
 
 float BNOimu::get_roll_quat(){
@@ -123,7 +129,7 @@ float BNOimu::get_roll_quat(){
     double sinr_cosp = 2 * (quatReal * quatI + quatJ * quatK);
     double cosr_cosp = 1 - 2 * (quatI * quatI + quatJ * quatJ);
     float roll = atan2(sinr_cosp, cosr_cosp);
-    return roll*rad2deg;
+    return -1 * roll * rad2deg;
 }
 
 float BNOimu::get_pitch_quat(){
@@ -135,7 +141,7 @@ float BNOimu::get_pitch_quat(){
     else
         pitch = asin(sinp);
     
-    return pitch*rad2deg;
+    return pitch * rad2deg;
 }
 
 float BNOimu::get_yaw_quat(){
@@ -143,7 +149,7 @@ float BNOimu::get_yaw_quat(){
     double siny_cosp = 2 * (quatReal * quatK + quatI * quatJ);
     double cosy_cosp = 1 - 2 * (quatJ * quatJ + quatK * quatK);
     float yaw = atan2(siny_cosp, cosy_cosp);
-    return yaw*rad2deg;
+    return yaw * rad2deg;
 }
 
     
