@@ -17,7 +17,7 @@ void BNOimu::setup(boolean vector){
   myIMU.begin();
   myIMU.calibrateAll();
   Wire.setClock(400000);
-  delay(1);
+  delay(5);
 
   if (vector == true){
     myIMU.enableAccelerometer(5); 
@@ -25,10 +25,11 @@ void BNOimu::setup(boolean vector){
     myIMU.enableMagnetometer(5); 
 
   }else{
-    myIMU.enableRotationVector(5);  
+    //myIMU.enableAccelerometer(5);
+    myIMU.enableRotationVector(5);   
   }
 
-  delay(5);
+  delay(100);
 
 }
 
@@ -58,6 +59,13 @@ float BNOimu::get_gyro_roll(int filter){
   gyro_prev = y_g;
 
   return gyro_roll*rad2deg;
+}
+
+float BNOimu::get_z_acc(int filter){
+  float z_acc = z_a * (1-filter/100) + z_acc_prev * (filter/100);
+  z_acc_prev = z_a;
+
+  return z_acc;
 }
 
 /* float BNOimu::get_altitude(int dt){
@@ -116,11 +124,16 @@ float BNOimu::get_yaw_eul(){
 
 
 void BNOimu::read_quat(){
+  
    if (myIMU.dataAvailable() == true){ 
       quatI = myIMU.getQuatI();
       quatJ = myIMU.getQuatJ();
       quatK = myIMU.getQuatK();
       quatReal = myIMU.getQuatReal();
+/*       Serial.print(quatI);
+      Serial.print(" ");
+      Serial.println(quatJ); */
+      //z_a = myIMU.getAccelZ();
    }
 }
 

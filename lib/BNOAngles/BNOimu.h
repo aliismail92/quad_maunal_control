@@ -41,7 +41,7 @@ class BNOimu{
         float y_m ;
         float z_m ;  
         float dt;
-        float gyro_prev = 0;
+        float gyro_prev = 0, z_acc_prev = 0;
         float quatI, quatJ, quatK, quatReal;
         float pos_z, pos_x, pos_y;
         float prev_pos_z = 0, prev_pos_x = 0, prev_pos_y = 0;
@@ -68,6 +68,7 @@ class BNOimu{
         float get_pitch_quat();
         float get_yaw_quat();
         float get_gyro_roll(int filter);
+        float get_z_acc(int filter);
       //  float BNOimu::get_altitude(int dt);
     
     };
